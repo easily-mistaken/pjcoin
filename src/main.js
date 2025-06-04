@@ -7,6 +7,7 @@ class Block {
     this.data = data;
     this.previousHash = previousHash;
     this.hash = this.calculateHash();
+    this.nonce = 0;
   }
 
   calculateHash() {
@@ -14,14 +15,33 @@ class Block {
       this.index +
         this.timestamp +
         JSON.stringify(this.data) +
-        this.previousHash
+        this.previousHash +
+        this.nonce
     ).toString();
+  }
+
+  mineBlock(difficulty) {
+    let nonce = this.nonce;
+    let hash = this.hash;
+    while (hash.substring(0, difficulty) !== Array(difficulty + 1).join("0")) {
+      nonce++;
+      hash = SHA256(
+        this.index +
+          this.timestamp +
+          JSON.stringify(this.data) +
+          this.previousHash +
+          nonce
+      ).toString();
+    }
+    this.hash = hash;
+    console.log(`Block mined: ${this.hash}`);
   }
 }
 
 class Blockchain {
   constructor() {
     this.chain = [this.createGenesisBlock()];
+    this.difficulty = 4; // Difficulty level for mining
   }
 
   createGenesisBlock() {
@@ -34,7 +54,8 @@ class Blockchain {
 
   addBlock(newBlock) {
     newBlock.previousHash = this.getLatestBlock().hash;
-    newBlock.hash = newBlock.calculateHash();
+    newBlock.mineBlock(this.difficulty);
+
     this.chain.push(newBlock);
   }
 
@@ -56,14 +77,9 @@ class Blockchain {
 }
 
 let pjcoin = new Blockchain();
+
+console.log("Mining block 1...");
 pjcoin.addBlock(new Block(1, "05/06/2025", { amount: 4 }));
+
+console.log("Mining block 2...");
 pjcoin.addBlock(new Block(2, "05/06/2025", { amount: 10 }));
-
-console.log("Is blockchain valid? " + pjcoin.isChainValid());
-
-pjcoin.chain[1].data = { amount: 100 }; // Tampering with the data
-pjcoin.chain[1].hash = pjcoin.chain[1].calculateHash(); // Recalculate hash
-
-console.log("Is blockchain valid? " + pjcoin.isChainValid());
-
-// console.log(JSON.stringify(pjcoin, null, 4));
