@@ -1,10 +1,16 @@
 const SHA256 = require("crypto-js/sha256");
 
+class Transaction {
+  constructor(fromAddress, toAddress, amount) {
+    this.fromAddress = fromAddress;
+    this.toAddress = toAddress;
+    this.amount = amount;
+  }
+}
 class Block {
-  constructor(index, timestamp, data, previousHash = "") {
-    this.index = index;
+  constructor(timestamp, transactions, previousHash = "") {
     this.timestamp = timestamp;
-    this.data = data;
+    this.transactions = transactions;
     this.previousHash = previousHash;
     this.hash = this.calculateHash();
     this.nonce = 0;
@@ -14,7 +20,7 @@ class Block {
     return SHA256(
       this.index +
         this.timestamp +
-        JSON.stringify(this.data) +
+        JSON.stringify(this.transactions) +
         this.previousHash +
         this.nonce
     ).toString();
@@ -28,7 +34,7 @@ class Block {
       hash = SHA256(
         this.index +
           this.timestamp +
-          JSON.stringify(this.data) +
+          JSON.stringify(this.transactions) +
           this.previousHash +
           nonce
       ).toString();
@@ -41,22 +47,51 @@ class Block {
 class Blockchain {
   constructor() {
     this.chain = [this.createGenesisBlock()];
-    this.difficulty = 4; // Difficulty level for mining
+    this.difficulty = 2;
+    this.pendingTransactions = [];
+    this.miningReward = 100; // Reward for mining a block
   }
 
   createGenesisBlock() {
-    return new Block(0, "04/06/2025", "Genesis Block", "0");
+    return new Block("04/06/2025", "Genesis Block", "0");
   }
 
   getLatestBlock() {
     return this.chain[this.chain.length - 1];
   }
 
-  addBlock(newBlock) {
-    newBlock.previousHash = this.getLatestBlock().hash;
-    newBlock.mineBlock(this.difficulty);
+  minePendingTransactions(miningRewardAddress) {
+    const block = new Block(
+      Date.now(),
+      this.pendingTransactions,
+      this.getLatestBlock().hash
+    );
+    block.mineBlock(this.difficulty);
+    console.log("Block successfully mined!");
+    this.chain.push(block);
+    this.pendingTransactions = [
+      new Transaction(null, miningRewardAddress, this.miningReward),
+    ];
+  }
 
-    this.chain.push(newBlock);
+  createTransaction(transaction) {
+    this.pendingTransactions.push(transaction);
+  }
+
+  getBalanceOfAddress(address) {
+    let balance = 0;
+
+    for (const block of this.chain) {
+      for (const tx of block.transactions) {
+        if (tx.fromAddress === address) {
+          balance -= tx.amount;
+        }
+        if (tx.toAddress === address) {
+          balance += tx.amount;
+        }
+      }
+    }
+    return balance;
   }
 
   isChainValid() {
@@ -78,8 +113,19 @@ class Blockchain {
 
 let pjcoin = new Blockchain();
 
-console.log("Mining block 1...");
-pjcoin.addBlock(new Block(1, "05/06/2025", { amount: 4 }));
+pjcoin.createTransaction(new Transaction("address1", "address2", 100));
+pjcoin.createTransaction(new Transaction("address2", "address1", 50));
 
-console.log("Mining block 2...");
-pjcoin.addBlock(new Block(2, "05/06/2025", { amount: 10 }));
+console.log("\nStarting the miner...");
+pjcoin.minePendingTransactions("miner-address");
+
+console.log(
+  `Balance of miner is ${pjcoin.getBalanceOfAddress("miner-address")}`
+);
+
+console.log("\nStarting the miner again...");
+pjcoin.minePendingTransactions("miner-address");
+
+console.log(
+  `Balance of miner is ${pjcoin.getBalanceOfAddress("miner-address")}`
+);
